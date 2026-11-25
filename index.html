@@ -1,0 +1,1231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="light" />
+<link rel="icon" href="data:," />
+<title>Cat Cafe Diner Demo</title>
+<style>
+  :root{
+    --cream:#fff6e9; --peach:#ffd9b3; --peach2:#ffb877; --ink:#5a3a26; --ink2:#8a6248;
+    --accent:#e86a4e; --accent-d:#c94f36; --green:#4caf6d; --panel:#fffdf7; --line:#e8c9a8;
+    --gold:#f2b63c;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0; overflow:hidden; background:#f7e3c3; color:var(--ink);
+    font-family: ui-rounded, "Comic Sans MS", "Chalkboard SE", "Segoe UI", system-ui, sans-serif;
+    display:flex; flex-direction:column; height:100dvh;
+  }
+  button{ font-family:inherit; cursor:pointer; min-height:2.25rem; }
+  #sceneWrap{ position:relative; flex:1 1 auto; min-height:0; background:#f7e3c3; }
+  canvas#game{ position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+
+  /* ---------- control dock ---------- */
+  #dock{
+    flex:0 0 auto; display:flex; align-items:center; gap:.45rem; flex-wrap:wrap;
+    padding:.45rem .6rem calc(.45rem + env(safe-area-inset-bottom));
+    background:linear-gradient(180deg,#ffedcb,#ffdcae); border-top:3px solid var(--line);
+  }
+  .dbtn{
+    border:3px solid var(--ink); border-radius:14px; background:var(--panel); color:var(--ink);
+    font-weight:800; font-size:.92rem; padding:.35rem .7rem; box-shadow:0 3px 0 var(--ink);
+    display:inline-flex; align-items:center; gap:.4rem; line-height:1;
+  }
+  .dbtn:active{ transform:translateY(2px); box-shadow:0 1px 0 var(--ink); }
+  .dbtn.primary{ background:var(--accent); color:#fff; }
+  .dbtn:disabled{ opacity:.45; cursor:default; }
+  .dbtn .key{
+    background:var(--ink); color:#ffe9c4; border-radius:6px; font-size:.68rem; padding:.14rem .34rem; font-weight:900;
+  }
+  .dbtn.primary .key{ background:rgba(0,0,0,.28); color:#fff; }
+  #dock .spacer{ flex:1 1 auto; }
+  #dockHint{ font-size:.8rem; font-weight:700; color:var(--ink2); }
+
+  /* ---------- title overlay ---------- */
+  #titleUI{
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center;
+    justify-content:flex-start; pointer-events:none; padding-top:2.2%;
+  }
+  #logo{
+    text-align:center; pointer-events:none;
+    filter:drop-shadow(0 4px 0 rgba(90,58,38,.25));
+  }
+  #logo .l1{
+    font-size:clamp(2rem,6.2vw,4.2rem); font-weight:900; letter-spacing:.01em; color:#fff;
+    -webkit-text-stroke:2px var(--ink); text-shadow:0 4px 0 var(--accent-d), 0 8px 18px rgba(90,58,38,.35);
+  }
+  #logo .l1 .paw{ color:var(--gold); -webkit-text-stroke:2px var(--ink); }
+  #logo .l2{
+    display:inline-block; margin-top:.15rem; background:var(--accent); color:#fff; font-weight:900;
+    font-size:clamp(.8rem,1.7vw,1.05rem); padding:.28rem 1rem; border-radius:999px; border:3px solid var(--ink);
+    letter-spacing:.14em;
+  }
+  #playBtn{
+    pointer-events:auto; margin-top:2.4vh;
+    font-size:clamp(1.3rem,3vw,1.9rem); font-weight:900; color:#fff; background:var(--green);
+    border:4px solid var(--ink); border-radius:999px; padding:.7rem 3.2rem;
+    box-shadow:0 6px 0 var(--ink); display:inline-flex; gap:.6rem; align-items:center;
+  }
+  #playBtn:active{ transform:translateY(4px); box-shadow:0 2px 0 var(--ink); }
+  #playBtn .key{ background:rgba(0,0,0,.25); border-radius:8px; font-size:.85rem; padding:.2rem .5rem; }
+  #titleSub{ margin-top:1.4vh; font-weight:800; color:var(--ink); background:rgba(255,253,247,.85);
+    border:2px solid var(--line); border-radius:999px; padding:.3rem 1rem; font-size:clamp(.75rem,1.6vw,.95rem); }
+  #titleBtns{ pointer-events:auto; margin-top:1.2vh; display:flex; gap:.5rem; flex-wrap:wrap; justify-content:center; }
+
+  /* ---------- panels ---------- */
+  .veil{
+    position:absolute; inset:0; background:rgba(90,58,38,.45); display:none;
+    align-items:center; justify-content:center; padding:1rem; z-index:5;
+  }
+  .veil.open{ display:flex; }
+  .panel{
+    background:var(--panel); border:4px solid var(--ink); border-radius:22px; box-shadow:0 10px 0 rgba(90,58,38,.35);
+    max-width:min(680px,94vw); width:100%; max-height:92%; display:flex; flex-direction:column; overflow:hidden;
+  }
+  .panel header{
+    padding:.8rem 1.1rem .4rem; display:flex; align-items:baseline; justify-content:space-between; gap:1rem;
+  }
+  .panel h2{ margin:0; font-size:1.45rem; font-weight:900; }
+  .panel .sub{ font-weight:700; color:var(--ink2); font-size:.9rem; }
+  .panel .body{ padding:.6rem 1.1rem 1rem; overflow-y:auto; }
+  .panel footer{ padding:0 1.1rem 1rem; display:flex; gap:.5rem; justify-content:flex-end; flex-wrap:wrap; }
+  .bigbtn{
+    border:3px solid var(--ink); border-radius:14px; background:var(--accent); color:#fff; font-weight:900;
+    font-size:1.05rem; padding:.55rem 1.4rem; box-shadow:0 4px 0 var(--ink);
+  }
+  .bigbtn:active{ transform:translateY(3px); box-shadow:0 1px 0 var(--ink); }
+  .ghostbtn{
+    border:3px solid var(--ink); border-radius:14px; background:#fff; color:var(--ink); font-weight:900;
+    font-size:1rem; padding:.55rem 1.2rem; box-shadow:0 4px 0 var(--ink);
+  }
+  .shoprow{
+    display:flex; align-items:center; gap:.8rem; border:3px solid var(--line); border-radius:16px;
+    padding:.55rem .7rem; margin-bottom:.55rem; background:#fffaf0;
+  }
+  .shoprow .ic{ font-size:1.7rem; width:2.6rem; text-align:center; flex:0 0 auto; }
+  .shoprow .tx{ flex:1 1 auto; min-width:0; }
+  .shoprow .tx b{ display:block; font-size:1rem; }
+  .shoprow .tx span{ font-size:.82rem; color:var(--ink2); font-weight:600; }
+  .buybtn{
+    border:3px solid var(--ink); border-radius:12px; background:var(--gold); color:var(--ink); font-weight:900;
+    padding:.4rem .8rem; box-shadow:0 3px 0 var(--ink); flex:0 0 auto; min-width:5.2rem;
+  }
+  .buybtn:disabled{ background:#d8e6c8; color:#4c7a3f; cursor:default; box-shadow:none; }
+  .buybtn.cant{ background:#eee; color:#999; }
+  .achrow{ display:flex; gap:.7rem; align-items:center; padding:.45rem .2rem; border-bottom:2px dashed var(--line); }
+  .achrow .st{ font-size:1.3rem; width:2rem; text-align:center; }
+  .achrow.locked{ opacity:.55; }
+  .achrow b{ display:block; }
+  .achrow span{ font-size:.82rem; color:var(--ink2); font-weight:600; }
+  .statgrid{ display:grid; grid-template-columns:1fr 1fr; gap:.5rem .9rem; margin:.4rem 0 .2rem; }
+  .statgrid div{ background:#fff3da; border:2px solid var(--line); border-radius:12px; padding:.45rem .7rem; font-weight:800; }
+  .statgrid div span{ display:block; font-size:.75rem; color:var(--ink2); font-weight:700; }
+  .stars{ font-size:2.4rem; text-align:center; letter-spacing:.2em; color:var(--gold); -webkit-text-stroke:1.5px var(--ink); }
+  .stars .off{ color:#e6d9c3; }
+  #toast{
+    position:absolute; left:50%; top:12%; transform:translateX(-50%) scale(.9); z-index:8;
+    background:var(--ink); color:#ffe9c4; font-weight:900; padding:.55rem 1.2rem; border-radius:999px;
+    border:3px solid #ffe9c4; opacity:0; pointer-events:none; transition:opacity .18s, transform .18s;
+    font-size:clamp(.9rem,2vw,1.15rem); white-space:nowrap;
+  }
+  #toast.show{ opacity:1; transform:translateX(-50%) scale(1); }
+  .hidden{ display:none !important; }
+  @media (max-width:640px){ #dockHint{ display:none; } #dAch, #dMusic{ display:none; } .dbtn{ font-size:.82rem; padding:.3rem .5rem; } }
+</style>
+</head>
+<body>
+<div id="sceneWrap">
+  <canvas id="game"></canvas>
+
+  <div id="titleUI">
+    <div id="logo">
+      <div class="l1">Cat Café <span class="paw">🐾</span> Diner</div><br>
+      <span class="l2">MISO'S SUNNY GARDEN CAFÉ</span>
+    </div>
+    <button id="playBtn">▶ Play <span class="key">Enter</span></button>
+    <div id="titleSub">Seat the cats · take orders · cook · serve · collect the coins!</div>
+    <div id="titleBtns">
+      <button class="dbtn" id="tShop">🛠 Shop <span class="key">S</span></button>
+      <button class="dbtn" id="tAch">🏆 Trophies</button>
+      <button class="dbtn" id="tHelp">? How to Play <span class="key">H</span></button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <!-- SHOP -->
+  <div class="veil" id="shopVeil">
+    <div class="panel">
+      <header><h2>🛠 Upgrade Shop</h2><div class="sub">Bank: <b id="shopBank">$0</b></div></header>
+      <div class="body" id="shopBody"></div>
+      <footer><button class="bigbtn" id="shopClose">Done</button></footer>
+    </div>
+  </div>
+
+  <!-- ACHIEVEMENTS -->
+  <div class="veil" id="achVeil">
+    <div class="panel">
+      <header><h2>🏆 Trophies</h2><div class="sub" id="achCount"></div></header>
+      <div class="body" id="achBody"></div>
+      <footer><button class="bigbtn" id="achClose">Done</button></footer>
+    </div>
+  </div>
+
+  <!-- HELP -->
+  <div class="veil" id="helpVeil">
+    <div class="panel">
+      <header><h2>How to Play</h2><div class="sub">Miso is counting on you!</div></header>
+      <div class="body" style="font-weight:600; line-height:1.55;">
+        <p>🐱 Guests queue at the garden door and sit at a free table. They read the menu, then <b>raise a paw</b> with a picture bubble of what they want.</p>
+        <p>👆 <b>Click the table</b> (or press its number <b>1–6</b>) and Miso runs over to take the order. Chef Mochi cooks it in the kitchen — watch the pot's progress ring!</p>
+        <p>🍽 When the dish lands on the <b>pass counter</b>, press <b>C</b> or <b>Space</b> (or click the pass) so Miso grabs it — he can carry <b>2 dishes</b>. Then click the glowing table to serve.</p>
+        <p>🪙 After eating, the guest leaves <b>coins and an empty plate</b>. Click the table to collect — a table is <b>not free</b> until you collect!</p>
+        <p>⏳ The ring above each guest is their patience, and their face changes colour as it runs out. Angry guests leave with no tip. Serve fast to build a <b>combo</b>, and watch for <b>Rush Hour</b> (+25% tips)!</p>
+        <p>🎯 Reach the day's money goal before the clock hits <b>9pm</b>. Finish all 6 days to unlock endless <b>Master Mode</b>.</p>
+      </div>
+      <footer><button class="bigbtn" id="helpClose">Got it!</button></footer>
+    </div>
+  </div>
+
+  <!-- DAY END -->
+  <div class="veil" id="endVeil">
+    <div class="panel">
+      <header><h2 id="endTitle">Day Over!</h2><div class="sub" id="endSub"></div></header>
+      <div class="body">
+        <div class="stars" id="endStars"></div>
+        <div class="statgrid" id="endStats"></div>
+        <p id="endMsg" style="font-weight:700; text-align:center; margin:.4rem 0 0;"></p>
+      </div>
+      <footer>
+        <button class="ghostbtn" id="endShop">🛠 Shop</button>
+        <button class="bigbtn" id="endNext">Next Day <span style="background:rgba(0,0,0,.25);border-radius:6px;padding:.1rem .4rem;font-size:.8rem;">Enter</span></button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- PAUSE -->
+  <div class="veil" id="pauseVeil">
+    <div class="panel" style="max-width:420px;">
+      <header><h2>⏸ Paused</h2></header>
+      <div class="body" style="font-weight:700;">The café is holding its breath…</div>
+      <footer>
+        <button class="ghostbtn" id="pauseMenu">Menu <span style="font-size:.75rem;">Esc</span></button>
+        <button class="bigbtn" id="pauseResume">Resume <span style="background:rgba(0,0,0,.25);border-radius:6px;padding:.1rem .4rem;font-size:.8rem;">P</span></button>
+      </footer>
+    </div>
+  </div>
+</div>
+
+<div id="dock">
+  <button class="dbtn primary" id="dGrab">🍽 Grab Dish <span class="key">C / Space</span></button>
+  <button class="dbtn" id="dPause">⏸ Pause <span class="key">P</span></button>
+  <button class="dbtn" id="dShop">🛠 Shop <span class="key">S</span></button>
+  <button class="dbtn" id="dAch">🏆 Trophies</button>
+  <button class="dbtn" id="dMusic">🎵 Music: On</button>
+  <span class="spacer"></span>
+  <span id="dockHint">Tables <b>1–6</b> · Grab <b>C</b> · Pause <b>P</b> · Menu <b>Esc</b></span>
+  <button class="dbtn" id="dMenu">☰ Menu <span class="key">Esc</span></button>
+</div>
+
+<script>
+"use strict";
+/* ================= DATA ================= */
+const MENU = [
+  { id:"fish",  name:"Fish Biscuits", price:8,  cook:5 },
+  { id:"tea",   name:"Milk Tea",     price:6,  cook:4 },
+  { id:"tart",  name:"Berry Tart",   price:10, cook:7 },
+  { id:"soup",  name:"Salmon Soup",  price:12, cook:9 },
+];
+const DAY_GOALS = [55, 75, 95, 120, 150, 185];
+const DAY_LEN = 150; // seconds, 9am -> 9pm
+const SHOP = [
+  { id:"shoes",    ic:"👟", name:"Speedy Shoes",    desc:"Miso runs 30% faster.",                 price:40 },
+  { id:"cushion",  ic:"🛋", name:"Comfy Cushions",  desc:"Guests wait 25% longer before getting cross.", price:50 },
+  { id:"pot",      ic:"🍲", name:"Extra Pot",       desc:"A third burner in the kitchen.",          price:60 },
+  { id:"tipjar",   ic:"🫙", name:"Big Tip Jar",     desc:"All tips are 25% bigger.",                price:70 },
+  { id:"flowers",  ic:"💐", name:"Fresh Flowers",   desc:"Sweet scents calm guests — patience drains 12% slower.", price:80 },
+  { id:"helper",   ic:"🐱", name:"Helper Chef",     desc:"A second chef — everything cooks 40% faster.", price:90 },
+  { id:"jukebox",  ic:"🎶", name:"Deluxe Jukebox",  desc:"Happy tunes slow patience drain by 20%.", price:55 },
+];
+const ACHS = [
+  { id:"first",  ic:"🍽", name:"First Serve",      desc:"Serve your first dish.",            test:s=>s.served>=1 },
+  { id:"s10",    ic:"🐾", name:"Paw-some Start",   desc:"Serve 10 dishes all-time.",         test:s=>s.served>=10 },
+  { id:"s25",    ic:"⭐", name:"Café Regular",     desc:"Serve 25 dishes all-time.",         test:s=>s.served>=25 },
+  { id:"s50",    ic:"👑", name:"Cat Café Star",    desc:"Serve 50 dishes all-time.",         test:s=>s.served>=50 },
+  { id:"combo5", ic:"🔥", name:"Combo x5",         desc:"Reach a x5 combo.",                 test:s=>s.bestCombo>=5 },
+  { id:"rush",   ic:"⚡", name:"Rush Hour Hero",   desc:"Serve 3 dishes during one Rush Hour.", test:s=>s.bestRush>=3 },
+  { id:"rich",   ic:"💰", name:"Rich Day",         desc:"Earn $150 in a single day.",        test:s=>s.bestDay>=150 },
+  { id:"calm",   ic:"😻", name:"Everyone Happy",   desc:"Finish a day with no angry guests.", test:s=>s.calmDays>=1 },
+  { id:"stars3", ic:"🌟", name:"Three Stars",      desc:"Earn 3 stars on any day.",          test:s=>s.threeStar>=1 },
+  { id:"master", ic:"🏅", name:"Master Mode",      desc:"Finish Day 6 and unlock Master Mode.", test:s=>s.master>=1 },
+];
+const CAT_SKINS = [
+  { fur:"#f59b4c", belly:"#fff1dc", stripe:"#d97a2e" },  // orange tabby
+  { fur:"#9aa3ad", belly:"#eef1f4", stripe:"#6f7880" },  // grey
+  { fur:"#ffffff", belly:"#ffffff", stripe:"#d9d9d9" },  // white
+  { fur:"#4c4a55", belly:"#8d8a99", stripe:"#2f2d36" },  // black
+  { fur:"#f3d9a4", belly:"#fff6e0", stripe:"#d9b877" },  // cream
+  { fur:"#c98d5f", belly:"#f7e3cb", stripe:"#a06a3e" },  // brown
+];
+const ACCESSORIES = ["bow","none","hat","none","flower","none","scarf"];
+
+/* ================= SAVE ================= */
+const SAVE_KEY = "catCafeDinerDemo.v1";
+let save = { bank:0, day:1, master:false, up:{}, ach:{}, stats:{ served:0, earned:0, bestCombo:0, bestRush:0, bestDay:0, calmDays:0, threeStar:0, master:0, angry:0 } };
+try { const raw = localStorage.getItem(SAVE_KEY); if (raw) { const p = JSON.parse(raw); if (p && p.stats) save = Object.assign(save, p); } } catch(e){}
+function persist(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch(e){} }
+function hasUp(id){ return !!save.up[id]; }
+
+/* ================= AUDIO ================= */
+let AC = null, musicOn = true, musicTimer = null, noteIdx = 0;
+function ac(){ if(!AC){ try{ AC = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } if(AC && AC.state==="suspended") AC.resume(); return AC; }
+function beep(freq, dur, type, vol, when){
+  const a = ac(); if(!a) return;
+  const t = a.currentTime + (when||0);
+  const o = a.createOscillator(), g = a.createGain();
+  o.type = type||"sine"; o.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol||0.12, t+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+  o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+dur+0.05);
+}
+const sfx = {
+  pop(){ beep(520,.09,"square",.06); beep(780,.08,"square",.05,.05); },
+  ding(){ beep(880,.15,"sine",.12); beep(1318,.25,"sine",.1,.1); },
+  coin(){ beep(988,.08,"square",.07); beep(1319,.18,"square",.07,.07); },
+  serve(){ beep(660,.08,"triangle",.1); beep(880,.12,"triangle",.1,.06); },
+  angry(){ beep(180,.25,"sawtooth",.07); },
+  click(){ beep(700,.05,"triangle",.06); },
+};
+const MELODY = [523,587,659,784,659,587,523,440, 523,587,659,880,784,659,587,523];
+function musicTick(){
+  if(!musicOn || screen!=="play" || paused || anyVeil()) return;
+  const n = MELODY[noteIdx % MELODY.length]; noteIdx++;
+  beep(n, .32, "triangle", .045); if(noteIdx%2===0) beep(n/2, .4, "sine", .03);
+}
+setInterval(musicTick, 380);
+
+/* ================= GAME STATE ================= */
+const cv = document.getElementById("game"), ctx = cv.getContext("2d");
+/* Fixed design space: the whole scene is authored at 1280x680 and
+   letterbox-scaled to fit any viewport, so layout never overlaps. */
+const DW = 1280, DH = 680;
+let W = DW, H = DH, DPR = 1, viewScale = 1, viewOX = 0, viewOY = 0;
+function resize(){
+  const r = cv.parentElement.getBoundingClientRect();
+  DPR = Math.min(window.devicePixelRatio||1, 2);
+  cv.width = Math.max(320, Math.round(r.width*DPR)); cv.height = Math.max(240, Math.round(r.height*DPR));
+  viewScale = Math.min(r.width/DW, r.height/DH);
+  viewOX = (r.width - DW*viewScale)/2; viewOY = 0; // top-aligned so overlays sit on the scene
+}
+window.addEventListener("resize", resize);
+
+let screen = "title"; // title | play | end
+let paused = false;
+let day = 1, dayTime = 0, dayMoney = 0, dayServed = 0, dayAngry = 0, dayDone = false;
+let spawnT = 1.2, rush = false, rushT = 0, rushServed = 0, rushDoneToday = false;
+let combo = 0, comboT = 0;
+let queue = [];           // guests waiting at door
+let particles = [];       // coins, steam, sparkles, hearts
+let floaters = [];        // floating text
+let pots = [];            // cooking
+let pass = [];            // ready dishes {dish, table}
+let tables = [];
+let miso = { x:0, y:0, tx:0, ty:0, tasks:[], carrying:[], face:1, walk:0, busy:false };
+let chef2 = false;
+let timeNow = 0;
+
+const TABLE_POS = [ // fractions of dining area
+  { fx:.17, fy:.47 }, { fx:.44, fy:.47 }, { fx:.71, fy:.47 },
+  { fx:.17, fy:.845 }, { fx:.44, fy:.845 }, { fx:.71, fy:.845 },
+];
+function diningW(){ return W * 0.76; }
+function tableXY(i){ const p = TABLE_POS[i]; return { x: p.fx * diningW() + W*0.02, y: p.fy * (H-70) + 46 }; }
+function passXY(){ return { x: diningW() + (W-diningW())*0.5, y: H*0.86 }; }
+function doorXY(){ return { x: 52, y: H*0.30 }; }
+
+function newTables(){
+  tables = TABLE_POS.map((p,i)=>({
+    i, state: "empty",
+    guest:null, readT:0, eatT:0, pending:0, dish:null, glow:0,
+  }));
+}
+function maxPatience(){ return (46 + day*1.5) * (hasUp("cushion")?1.25:1); }
+function potCount(){ return hasUp("pot") ? 3 : 2; }
+function cookTime(d){ return d.cook * (hasUp("helper")?0.6:1); }
+function goalFor(d){ if(d<=6) return DAY_GOALS[d-1]; return Math.round(185 * Math.pow(1.15, d-6)); }
+
+function makeGuest(){
+  const skin = CAT_SKINS[Math.floor(Math.random()*CAT_SKINS.length)];
+  const acc = ACCESSORIES[Math.floor(Math.random()*ACCESSORIES.length)];
+  const dish = MENU[Math.floor(Math.random()*MENU.length)];
+  const mp = maxPatience();
+  return { skin, acc, dish, patience: mp, maxP: mp, x: doorXY().x, y: doorXY().y, walk: Math.random()*6, state:"queue" };
+}
+
+/* ================= FLOW ================= */
+function startDay(){
+  day = save.master ? Math.max(7, save.day) : save.day;
+  if(!save.master) day = Math.min(save.day, 6);
+  dayTime = 0; dayMoney = 0; dayServed = 0; dayAngry = 0; dayDone = false;
+  spawnT = 0.8; rush = false; rushT = 0; rushServed = 0; rushDoneToday = false;
+  combo = 0; comboT = 0; queue = []; particles = []; floaters = []; pots = []; pass = [];
+  newTables();
+  const p = passXY(); miso.x = p.x; miso.y = p.y - 60; miso.tx = miso.x; miso.ty = miso.y; miso.tasks = []; miso.carrying = [];
+  chef2 = hasUp("helper");
+  screen = "play"; paused = false;
+  hideAllVeils(); document.getElementById("titleUI").classList.add("hidden");
+  toast(save.master ? "Master Mode — endless café days!" : ("Day " + day + " — goal $" + goalFor(day)));
+  ac();
+}
+function toTitle(){
+  screen = "title"; paused = false; hideAllVeils();
+  document.getElementById("titleUI").classList.remove("hidden");
+  newTables();
+  // decorate title scene: seat cats at some tables
+  [0,1,3,4].forEach(i=>{ const g = makeGuest(); g.state="seated"; tables[i].guest = g; tables[i].state="title"; });
+  queue = [];
+  const g = makeGuest(); g.state="queue"; queue.push(g);
+  pots = []; pass = [];
+  const p = passXY(); miso.x = p.x - 40; miso.y = p.y - 60; miso.tasks=[]; miso.carrying=[];
+}
+function endDay(){
+  if(dayDone) return; dayDone = true;
+  const goal = goalFor(day), stars = dayMoney>=goal*1.6?3 : dayMoney>=goal*1.25?2 : dayMoney>=goal?1 : 0;
+  const st = save.stats;
+  st.bestDay = Math.max(st.bestDay, dayMoney);
+  if(dayAngry===0 && dayServed>0) st.calmDays++;
+  if(stars===3) st.threeStar++;
+  let msg = "", nextLabel = "Next Day";
+  if(save.master){ msg = "Master Mode day complete — the café never closes!"; }
+  else if(stars===0){ msg = "Goal missed — the cats are still hungry. Try again tomorrow!"; }
+  else if(day>=6){ save.master = true; st.master = 1; save.day = 7; msg = "You finished all 6 days! Master Mode unlocked — endless days!"; nextLabel = "Master Mode"; }
+  else { save.day = day + 1; msg = stars===3 ? "Purr-fect day!" : "Goal reached — nicely done!"; }
+  if(!save.master && stars===0) save.day = day; // replay same day number next
+  persist(); checkAch();
+  document.getElementById("endTitle").textContent = save.master && day>=6 ? "Master Mode!" : ("Day " + day + " Complete!");
+  document.getElementById("endSub").textContent = "Goal $" + goal + (save.master ? " · Master Mode" : "");
+  document.getElementById("endStars").innerHTML = [1,2,3].map(n=>'<span class="'+(n<=stars?"":"off")+'">★</span>').join("");
+  document.getElementById("endStats").innerHTML =
+    "<div><span>Earned today</span>$"+dayMoney+"</div><div><span>Bank</span>$"+save.bank+"</div>"+
+    "<div><span>Guests served</span>"+dayServed+"</div><div><span>Angry walk-outs</span>"+dayAngry+"</div>";
+  document.getElementById("endMsg").textContent = msg;
+  document.getElementById("endNext").firstChild.textContent = nextLabel + " ";
+  screen = "end";
+  document.getElementById("endVeil").classList.add("open");
+}
+function checkAch(){
+  let newOne = null;
+  ACHS.forEach(a=>{ if(!save.ach[a.id] && a.test(save.stats)){ save.ach[a.id]=1; newOne = a; } });
+  if(newOne){ toast("🏆 Trophy: " + newOne.name); sfx.ding(); }
+  persist();
+}
+
+/* ================= ACTIONS ================= */
+function toast(msg){
+  const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove("show"), 2200);
+}
+function addFloater(x,y,text,color){ floaters.push({x,y,text,color:color||"#5a3a26",t:0}); }
+function misoGo(x,y,task){ miso.tasks.push({x,y,task}); }
+
+function tableAction(i){
+  if(screen!=="play" || paused || anyVeil()) return;
+  const tb = tables[i]; if(!tb || tb.state==="locked" || tb.state==="empty") return;
+  const pos = tableXY(i);
+  if(tb.state==="ordering"){
+    if(miso.tasks.some(t=>t.task && t.task.kind==="order" && t.task.table===i)) return;
+    misoGo(pos.x + 66, pos.y + 6, { kind:"order", table:i }); sfx.click();
+  } else if(tb.state==="dirty"){
+    collectTable(i);
+  } else if(tb.state==="waiting"){
+    const ci = miso.carrying.findIndex(c=>c.table===i);
+    if(ci>=0){ if(!miso.tasks.some(t=>t.task && t.task.kind==="serve" && t.task.table===i)) misoGo(pos.x + 66, pos.y + 6, { kind:"serve", table:i }); }
+    else if(pass.some(p=>p.table===i)){ grabDish(); toast("Miso grabbed it — tap Table " + (i+1) + " again to serve!"); }
+    else toast("Still cooking… watch the pot! 🍲");
+  }
+}
+function collectTable(i){
+  const tb = tables[i]; const pos = tableXY(i);
+  const amt = tb.pending; tb.pending = 0; tb.state = "empty"; tb.guest = null; tb.dish = null;
+  dayMoney += amt; save.bank += amt; save.stats.earned += amt; persist();
+  sfx.coin();
+  for(let k=0;k<6;k++) particles.push({ kind:"coin", x:pos.x+(Math.random()*40-20), y:pos.y+10, vx:(Math.random()*30-15), vy:-40-Math.random()*30, t:0, life:.9 });
+  addFloater(pos.x, pos.y-58, "+$"+amt, "#2e7d46");
+}
+function grabDish(){
+  if(screen!=="play" || paused || anyVeil()) return;
+  if(!pass.length){ toast("No dish on the pass yet!"); return; }
+  if(miso.carrying.length>=2){ toast("Miso's paws are full (2 dishes)!"); return; }
+  if(miso.tasks.some(t=>t.task && t.task.kind==="pickup")) return;
+  const p = passXY(); misoGo(p.x, p.y - 46, { kind:"pickup" }); sfx.click();
+}
+function doTask(task){
+  if(!task) return;
+  if(task.kind==="order"){
+    const tb = tables[task.table];
+    if(tb && tb.state==="ordering"){ tb.state="waiting"; pots.push({ dish: tb.guest.dish, table: task.table, t:0, dur: cookTime(tb.guest.dish) }); sfx.pop(); }
+  } else if(task.kind==="pickup"){
+    while(pass.length && miso.carrying.length<2){ const d = pass.shift(); miso.carrying.push(d); }
+    sfx.pop();
+  } else if(task.kind==="serve"){
+    const tb = tables[task.table]; const ci = miso.carrying.findIndex(c=>c.table===task.table);
+    if(tb && tb.state==="waiting" && ci>=0){
+      miso.carrying.splice(ci,1);
+      tb.state = "eating"; tb.eatT = 4.5;
+      combo = (comboT>0) ? combo+1 : 1; comboT = 7;
+      save.stats.bestCombo = Math.max(save.stats.bestCombo, combo);
+      if(rush){ rushServed++; save.stats.bestRush = Math.max(save.stats.bestRush, rushServed); }
+      sfx.serve();
+      const pos = tableXY(task.table);
+      for(let k=0;k<4;k++) particles.push({ kind:"heart", x:pos.x+(Math.random()*36-18), y:pos.y-40, vx:0, vy:-26, t:0, life:.8 });
+    }
+  }
+}
+
+/* ================= UPDATE ================= */
+function spawnGuest(){
+  if(queue.length>=4) return;
+  queue.push(makeGuest());
+}
+function seatQueue(){
+  if(!queue.length) return;
+  const free = tables.find(t=>t.state==="empty");
+  if(!free) return;
+  const g = queue.shift(); g.state = "walking"; g.targetTable = free.i;
+  free.state = "toseat"; free.guest = g;
+}
+function update(dt){
+  timeNow += dt;
+  if(screen==="play" && !paused && !anyVeil()){
+    // clock
+    if(!dayDone){
+      dayTime += dt;
+      if(dayTime >= DAY_LEN*0.5 && dayTime < DAY_LEN*0.5 + dt && !rushDoneToday){ rush = true; rushT = 26; rushServed = 0; toast("⚡ RUSH HOUR! +25% tips!"); sfx.ding(); }
+      if(dayTime >= DAY_LEN){ endDay(); }
+    }
+    if(rush){ rushT -= dt; if(rushT<=0){ rush = false; rushDoneToday = true; } }
+    if(comboT>0){ comboT -= dt; if(comboT<=0) combo = 0; }
+    // spawning
+    spawnT -= dt;
+    const interval = (rush ? 3.4 : Math.max(3.6, 7.5 - day*0.55)) ;
+    if(spawnT<=0 && dayTime < DAY_LEN-6){ spawnGuest(); spawnT = interval * (0.75 + Math.random()*0.5); }
+    seatQueue();
+    // cooking
+    const activePots = pots.slice(0, potCount());
+    activePots.forEach(p=>{ p.t += dt; });
+    for(let i=pots.length-1;i>=0;i--){
+      const p = pots[i];
+      if(p.t>=p.dur){
+        pots.splice(i,1); pass.push({ dish:p.dish, table:p.table }); sfx.ding();
+        const tb = tables[p.table]; if(tb) tb.glow = 1;
+        addFloater(passXY().x, passXY().y-70, "Ready!", "#2e7d46");
+      }
+    }
+    // tables & guests
+    tables.forEach(tb=>{
+      if(tb.glow>0) tb.glow = Math.max(0, tb.glow - dt*0.7);
+      const g = tb.guest; if(!g) return;
+      if(tb.state==="toseat"){
+        const pos = tableXY(tb.i);
+        moveToward(g, pos.x, pos.y-14, 150, dt);
+        if(dist(g.x,g.y,pos.x,pos.y-14)<8){ tb.state="reading"; tb.readT = 1.6 + Math.random()*1.6; g.x=pos.x; g.y=pos.y-14; }
+      } else if(tb.state==="reading"){
+        tb.readT -= dt; drainPatience(tb, dt);
+        if(tb.readT<=0 && g.patience>0){ tb.state="ordering"; sfx.pop(); }
+      } else if(tb.state==="ordering" || tb.state==="waiting"){
+        drainPatience(tb, dt);
+      } else if(tb.state==="eating"){
+        tb.eatT -= dt;
+        if(Math.random()<dt*6){ const pos=tableXY(tb.i); particles.push({kind:"steam", x:pos.x+(Math.random()*24-12), y:pos.y+16, vx:0, vy:-22, t:0, life:.7}); }
+        if(tb.eatT<=0){
+          // finish: compute payment, guest leaves, coins+plate stay
+          const frac = Math.max(0, g.patience / g.maxP);
+          const price = g.dish.price;
+          let tip = price * (0.15 + frac*0.65);
+          tip *= (1 + Math.min(combo-1,10)*0.1);
+          if(rush) tip *= 1.25;
+          if(hasUp("tipjar")) tip *= 1.25;
+          tb.pending = price + Math.round(tip);
+          tb.state = "dirty"; dayServed++; save.stats.served++;
+          g.state = "leaving"; g.x = tableXY(tb.i).x; g.y = tableXY(tb.i).y - 14;
+          leaving.push(g); tb.guest = null;
+          checkAch(); persist();
+        }
+      }
+      if((tb.state==="reading"||tb.state==="ordering"||tb.state==="waiting") && g.patience<=0){
+        // angry walk-out
+        dayAngry++; save.stats.angry++;
+        g.state="leaving"; leaving.push(g);
+        tb.guest = null; tb.state="empty"; tb.dish=null;
+        // cancel any cooking for this table
+        for(let i=pots.length-1;i>=0;i--) if(pots[i].table===tb.i) pots.splice(i,1);
+        for(let i=pass.length-1;i>=0;i--) if(pass[i].table===tb.i) pass.splice(i,1);
+        for(let i=miso.carrying.length-1;i>=0;i--) if(miso.carrying[i].table===tb.i) miso.carrying.splice(i,1);
+        sfx.angry(); toast("A guest left angry! 💨"); persist();
+      }
+    });
+    // queue guests shuffle forward
+    queue.forEach((g,idx)=>{ const d=doorXY(); moveToward(g, d.x, d.y + idx*6, 60, dt); });
+  }
+  // leaving guests walk to door & fade (also on title)
+  for(let i=leaving.length-1;i>=0;i--){
+    const g = leaving[i]; const d = doorXY();
+    moveToward(g, d.x-30, d.y, 190, dt);
+    if(dist(g.x,g.y,d.x-30,d.y)<14) leaving.splice(i,1);
+  }
+  // miso movement
+  updateMiso(dt);
+  // particles
+  for(let i=particles.length-1;i>=0;i--){
+    const p = particles[i]; p.t += dt;
+    if(p.kind==="coin"){ // fly to till (top-left HUD money)
+      const tx=118, ty=26; p.x += (tx-p.x)*dt*5 + p.vx*dt; p.y += (ty-p.y)*dt*5 + p.vy*dt; p.vy += 60*dt;
+    } else { p.x += p.vx*dt; p.y += p.vy*dt; }
+    if(p.t>p.life) particles.splice(i,1);
+  }
+  for(let i=floaters.length-1;i>=0;i--){ const f=floaters[i]; f.t+=dt; f.y-=26*dt; if(f.t>1.1) floaters.splice(i,1); }
+}
+let leaving = [];
+function drainPatience(tb, dt){
+  let rate = 1; if(hasUp("jukebox")) rate *= 0.8; if(hasUp("flowers")) rate *= 0.88;
+  tb.guest.patience -= dt * rate;
+}
+function dist(x1,y1,x2,y2){ return Math.hypot(x2-x1, y2-y1); }
+function moveToward(o, x, y, speed, dt){
+  const d = dist(o.x,o.y,x,y); if(d<1) return;
+  const s = Math.min(d, speed*dt); o.x += (x-o.x)/d*s; o.y += (y-o.y)/d*s; o.walk = (o.walk||0) + dt*10;
+  if(x>o.x) o.face = 1; else if(x<o.x) o.face = -1;
+}
+function updateMiso(dt){
+  const speed = 235 * (hasUp("shoes")?1.3:1);
+  if(miso.tasks.length){
+    const t = miso.tasks[0];
+    const d = dist(miso.x, miso.y, t.x, t.y);
+    if(d<7){ miso.tasks.shift(); doTask(t.task); }
+    else moveToward(miso, t.x, t.y, speed, dt);
+  } else {
+    const p = passXY(); moveToward(miso, p.x, p.y-58, speed*0.7, dt);
+  }
+}
+
+/* ================= DRAW HELPERS ================= */
+function rr(x,y,w,h,r){ ctx.beginPath(); ctx.roundRect(x,y,w,h,r); }
+function ell(x,y,rx,ry){ ctx.beginPath(); ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2); }
+function inkLine(w){ ctx.lineWidth = w||3; ctx.strokeStyle = "#5a3a26"; }
+function drawDishIcon(id, x, y, s){
+  ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
+  inkLine(2.4);
+  if(id==="fish"){ // fish biscuit
+    ctx.fillStyle = "#e8a34c";
+    ctx.beginPath(); ctx.ellipse(0,0,13,8,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(11,0); ctx.lineTo(20,-7); ctx.lineTo(20,7); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#5a3a26"; ctx.beginPath(); ctx.arc(-6,-1,1.8,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle = "#b97a26"; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(0,-6); ctx.quadraticCurveTo(3,0,0,6); ctx.stroke();
+  } else if(id==="tea"){ // milk tea cup
+    ctx.fillStyle = "#fffdf7"; rr(-9,-8,18,17,3); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#d9a05f"; rr(-9,-8,18,6,3); ctx.fill();
+    ctx.beginPath(); ctx.arc(12,0,5,0,Math.PI*2); ctx.stroke();
+    ctx.strokeStyle = "#e86a4e"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(3,-16); ctx.lineTo(6,-8); ctx.stroke();
+  } else if(id==="tart"){ // berry tart
+    ctx.fillStyle = "#d98e4a"; ctx.beginPath(); ctx.ellipse(0,3,14,7,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#c2452d"; ctx.beginPath(); ctx.ellipse(0,0,11,5.5,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#7a4fa3"; [-6,1,6].forEach(bx=>{ ctx.beginPath(); ctx.arc(bx,-4,3.2,0,Math.PI*2); ctx.fill(); ctx.stroke(); });
+    ctx.fillStyle = "#4caf6d"; ctx.beginPath(); ctx.ellipse(0,-8,4,2,0.4,0,Math.PI*2); ctx.fill();
+  } else { // salmon soup bowl
+    ctx.fillStyle = "#7fb6c9"; ctx.beginPath(); ctx.arc(0,0,13,0.15*Math.PI,0.85*Math.PI); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#f6c177"; ctx.beginPath(); ctx.ellipse(0,0,13,4,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#e88ca0"; ctx.beginPath(); ctx.ellipse(-3,-1,5,2.4,0.3,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle = "rgba(120,120,120,.55)"; ctx.lineWidth = 1.8;
+    [-5,3].forEach(sx=>{ ctx.beginPath(); ctx.moveTo(sx,-7); ctx.quadraticCurveTo(sx+2,-11,sx,-14); ctx.stroke(); });
+  }
+  ctx.restore();
+}
+function drawCatFace(x, y, r, skin, mood, opts){
+  opts = opts || {};
+  // ears
+  ctx.fillStyle = skin.fur; inkLine(2.6);
+  [[-1,-1],[1,-1]].forEach(e=>{
+    ctx.beginPath();
+    ctx.moveTo(x + e[0]*r*0.62, y - r*0.55);
+    ctx.lineTo(x + e[0]*r*1.02, y - r*1.12);
+    ctx.lineTo(x + e[0]*r*0.18, y - r*0.86);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#f6b8c1";
+    ctx.beginPath();
+    ctx.moveTo(x + e[0]*r*0.6, y - r*0.66);
+    ctx.lineTo(x + e[0]*r*0.86, y - r*0.98);
+    ctx.lineTo(x + e[0]*r*0.34, y - r*0.82);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = skin.fur;
+  });
+  // head
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fillStyle = skin.fur; ctx.fill(); ctx.stroke();
+  // patience face tint: happy cream -> cross red
+  if(mood!==undefined && mood<0.62){
+    ctx.save(); ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.clip();
+    ctx.fillStyle = "rgba(232,80,60," + ((0.62-mood)*0.55).toFixed(3) + ")";
+    ctx.fillRect(x-r,y-r,r*2,r*2); ctx.restore();
+  }
+  // stripes
+  ctx.strokeStyle = skin.stripe; ctx.lineWidth = 2;
+  [-0.35,0,0.35].forEach(o=>{ ctx.beginPath(); ctx.moveTo(x+o*r, y-r*0.98); ctx.lineTo(x+o*r, y-r*0.72); ctx.stroke(); });
+  // eyes
+  ctx.fillStyle = "#3a2a1e";
+  if(opts.blink){ [-0.36,0.36].forEach(o=>{ ctx.beginPath(); ctx.ellipse(x+o*r, y-r*0.05, r*0.13, r*0.03, 0,0,Math.PI*2); ctx.fill(); }); }
+  else { [-0.36,0.36].forEach(o=>{ ctx.beginPath(); ctx.arc(x+o*r, y-r*0.05, r*0.11, 0, Math.PI*2); ctx.fill(); }); }
+  // nose + mouth (mouth shape by mood)
+  ctx.fillStyle = "#e87a8a"; ctx.beginPath(); ctx.moveTo(x-3,y+r*0.18); ctx.lineTo(x+3,y+r*0.18); ctx.lineTo(x,y+r*0.3); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = "#3a2a1e"; ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  if(mood!==undefined && mood<0.3){ ctx.arc(x, y+r*0.62, r*0.2, Math.PI*1.15, Math.PI*1.85); } // frown
+  else if(mood!==undefined && mood<0.62){ ctx.moveTo(x-r*0.18, y+r*0.44); ctx.lineTo(x+r*0.18, y+r*0.44); } // flat
+  else { ctx.arc(x, y+r*0.3, r*0.22, 0.15*Math.PI, 0.85*Math.PI); } // smile
+  ctx.stroke();
+  // whiskers
+  ctx.lineWidth = 1.3; ctx.strokeStyle = "rgba(90,58,38,.6)";
+  [-1,1].forEach(s=>{ [-0.12,0.08].forEach(o=>{ ctx.beginPath(); ctx.moveTo(x+s*r*0.55, y+r*o); ctx.lineTo(x+s*r*1.05, y+r*(o-0.04)); ctx.stroke(); }); });
+  // accessory
+  if(opts.acc==="bow"){ ctx.fillStyle="#e86a4e"; inkLine(1.8);
+    ctx.beginPath(); ctx.moveTo(x+r*0.55,y-r*0.8); ctx.lineTo(x+r*0.95,y-r*1.0); ctx.lineTo(x+r*0.95,y-r*0.55); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+r*0.55,y-r*0.8); ctx.lineTo(x+r*0.2,y-r*1.0); ctx.lineTo(x+r*0.2,y-r*0.55); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x+r*0.56,y-r*0.78,3,0,Math.PI*2); ctx.fillStyle="#f2b63c"; ctx.fill(); ctx.stroke();
+  } else if(opts.acc==="flower"){ ctx.fillStyle="#f28bb4";
+    for(let k=0;k<5;k++){ const a=k/5*Math.PI*2; ctx.beginPath(); ctx.arc(x+r*0.6+Math.cos(a)*4, y-r*0.85+Math.sin(a)*4, 3.4,0,Math.PI*2); ctx.fill(); }
+    ctx.fillStyle="#f2b63c"; ctx.beginPath(); ctx.arc(x+r*0.6,y-r*0.85,2.6,0,Math.PI*2); ctx.fill();
+  } else if(opts.acc==="hat"){ ctx.fillStyle="#7fb6c9"; inkLine(2);
+    ctx.beginPath(); ctx.ellipse(x, y-r*0.92, r*0.62, r*0.16, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    rr(x-r*0.4, y-r*1.3, r*0.8, r*0.42, 4); ctx.fill(); ctx.stroke();
+  } else if(opts.acc==="scarf"){ ctx.fillStyle="#e86a4e"; rr(x-r*0.55, y+r*0.72, r*1.1, r*0.26, 5); ctx.fill(); }
+}
+function drawSeatedCat(g, x, y, s, opts){
+  opts = opts || {};
+  const t = timeNow;
+  const mood = opts.mood;
+  const bob = opts.eating ? Math.abs(Math.sin(t*10))*3 : Math.sin(t*2 + x)*1.2;
+  ctx.save(); ctx.translate(x, y - bob*0.3); ctx.scale(s, s);
+  // booth: back cushion behind body
+  ctx.fillStyle = "#e8906f"; inkLine(3); rr(-46,-58,92,74,16); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#f2a583"; rr(-38,-50,76,58,12); ctx.fill();
+  // seat cushion the body sits ON
+  ctx.fillStyle = "#d97757"; inkLine(3); ell(0,16,50,13); ctx.fill(); ctx.stroke();
+  // tail curling beside cushion
+  ctx.strokeStyle = g.skin.fur; ctx.lineWidth = 8; ctx.lineCap="round";
+  ctx.beginPath(); ctx.moveTo(34,10); ctx.quadraticCurveTo(52,14,50,-2 + Math.sin(t*2.4+x)*2); ctx.stroke();
+  inkLine(3);
+  // body sitting on cushion (belly)
+  ctx.fillStyle = g.skin.fur; ell(0,-2,30,24); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = g.skin.belly; ell(0,2,18,16); ctx.fill();
+  // raised paw when ordering
+  if(opts.pawUp){
+    const wave = Math.sin(t*6)*4;
+    ctx.fillStyle = g.skin.fur; inkLine(2.6);
+    ell(38 + wave*0.4, -52 + wave*0.3, 8, 12); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = g.skin.fur; ctx.lineWidth = 9;
+    ctx.beginPath(); ctx.moveTo(26,-14); ctx.quadraticCurveTo(36,-32, 38+wave*0.4, -46+wave*0.3); ctx.stroke();
+  }
+  // head above table
+  drawCatFace(0, -40 - bob*0.4, 24, g.skin, mood, { acc: g.acc, blink: opts.eating });
+  // menu card while reading
+  if(opts.reading){
+    ctx.fillStyle = "#fffdf7"; inkLine(2.2); rr(-16, 2, 32, 24, 3); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = "#c9a06a"; ctx.lineWidth = 2;
+    [-4,3,10].forEach(dy=>{ ctx.beginPath(); ctx.moveTo(-11, 8+dy); ctx.lineTo(11, 8+dy); ctx.stroke(); });
+  }
+  // plate while eating / empty plate when dirty handled by table draw
+  if(opts.eating){ drawDishIcon(g.dish.id, 0, 26, 0.85); }
+  ctx.restore();
+  // patience ring above guest
+  if(opts.ring && mood!==undefined){
+    const frac = Math.max(0, mood);
+    ctx.save(); ctx.translate(x, y - 92*s);
+    ctx.beginPath(); ctx.arc(0,0,11,0,Math.PI*2); ctx.fillStyle="rgba(255,253,247,.9)"; ctx.fill();
+    ctx.lineWidth = 4.5; ctx.strokeStyle = "#e8ddcb"; ctx.beginPath(); ctx.arc(0,0,9,0,Math.PI*2); ctx.stroke();
+    ctx.strokeStyle = frac>0.5 ? "#4caf6d" : frac>0.28 ? "#f2a63c" : "#e84c3c";
+    ctx.beginPath(); ctx.arc(0,0,9,-Math.PI/2, -Math.PI/2 + frac*Math.PI*2); ctx.stroke();
+    ctx.fillStyle = "#5a3a26"; ctx.font = "900 10px ui-rounded, system-ui"; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText("♥", 0, 0.5);
+    ctx.restore();
+  }
+  // dangling feet at the table edge (drawn after tabletop by caller order note)
+}
+function drawTableFeet(x, y, s){
+  const swing = Math.sin(timeNow*3 + x)*3;
+  ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
+  ctx.fillStyle = "#fff6e9"; inkLine(2.4);
+  ell(-16 + swing*0.4, 58, 9, 6); ctx.fill(); ctx.stroke();
+  ell(16 - swing*0.4, 58, 9, 6); ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+function drawWalkingCat(g, x, y, s, opts){
+  opts = opts || {};
+  const w = Math.sin((g.walk||0))*4;
+  ctx.save(); ctx.translate(x,y); ctx.scale((g.face||1)*s, s);
+  // legs
+  ctx.fillStyle = g.skin.fur; inkLine(2.2);
+  ell(-10 + w, 16, 5, 8); ctx.fill(); ctx.stroke();
+  ell(10 - w, 16, 5, 8); ctx.fill(); ctx.stroke();
+  // tail
+  ctx.strokeStyle = g.skin.fur; ctx.lineWidth = 6; ctx.lineCap="round";
+  ctx.beginPath(); ctx.moveTo(-22,-8); ctx.quadraticCurveTo(-34,-16,-30,-28+Math.sin(timeNow*3)*2); ctx.stroke();
+  // body
+  ctx.fillStyle = g.skin.fur; inkLine(2.6); ell(0,-4,24,17); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = g.skin.belly; ell(2,-1,13,10); ctx.fill();
+  drawCatFace(14, -24, 17, g.skin, undefined, { acc: g.acc });
+  ctx.restore();
+}
+function drawMiso(x, y){
+  const w = Math.sin(miso.walk||0)*4;
+  const moving = miso.tasks.length>0;
+  ctx.save(); ctx.translate(x,y); ctx.scale((miso.face||1), 1);
+  ctx.fillStyle = "#f59b4c"; inkLine(2.4);
+  ell(-9 + (moving?w:0), 17, 5.5, 8); ctx.fill(); ctx.stroke();
+  ell(10 - (moving?w:0), 17, 5.5, 8); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = "#f59b4c"; ctx.lineWidth = 6; ctx.lineCap="round";
+  ctx.beginPath(); ctx.moveTo(-20,-6); ctx.quadraticCurveTo(-33,-14,-29,-27+Math.sin(timeNow*3)*2); ctx.stroke();
+  ctx.fillStyle = "#f59b4c"; inkLine(2.8); ell(0,-4,23,17); ctx.fill(); ctx.stroke();
+  // apron
+  ctx.fillStyle = "#fffdf7"; inkLine(2);
+  ctx.beginPath(); ctx.moveTo(-11,-12); ctx.lineTo(13,-12); ctx.lineTo(9,12); ctx.lineTo(-8,12); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#e86a4e"; ctx.beginPath(); ctx.arc(1,0,3,0,Math.PI*2); ctx.fill();
+  drawCatFace(13, -25, 17, CAT_SKINS[0], undefined, {});
+  // red neckerchief
+  ctx.fillStyle = "#e86a4e"; ctx.beginPath(); ctx.moveTo(2,-12); ctx.lineTo(16,-13); ctx.lineTo(10,-4); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  // carried dishes hover by paws (unflipped)
+  miso.carrying.forEach((c,idx)=>{
+    const dx = x + (idx===0?-20:22), dy = y - 8;
+    ctx.fillStyle = "#fffdf7"; inkLine(2); ell(dx, dy, 13, 5); ctx.fill(); ctx.stroke();
+    drawDishIcon(c.dish.id, dx, dy-5, 0.62);
+  });
+  // name tag
+  ctx.fillStyle = "rgba(90,58,38,.85)"; ctx.font = "800 10px ui-rounded, system-ui"; ctx.textAlign="center";
+  ctx.fillText("MISO", x, y - 52);
+}
+function drawChef(x, y, flip, hat){
+  const stir = Math.sin(timeNow*4 + x)*5;
+  ctx.save(); ctx.translate(x,y); if(flip) ctx.scale(-1,1);
+  ctx.fillStyle = "#ffffff"; inkLine(2.6); ell(0,6,22,16); ctx.fill(); ctx.stroke();
+  drawCatFace(6, -16, 16, CAT_SKINS[2], undefined, {});
+  // chef hat
+  ctx.fillStyle = "#fffdf7"; inkLine(2.2);
+  ell(6,-34,13,7); ctx.fill(); ctx.stroke(); rr(-4,-44,20,10,4); ctx.fill(); ctx.stroke();
+  // stirring arm + spoon
+  ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 7; ctx.lineCap="round";
+  ctx.beginPath(); ctx.moveTo(14,2); ctx.quadraticCurveTo(26,-2, 30+stir*0.4, -8); ctx.stroke();
+  ctx.strokeStyle = "#a9743f"; ctx.lineWidth = 3.4;
+  ctx.beginPath(); ctx.moveTo(30+stir*0.4,-8); ctx.lineTo(34+stir*0.4, 4); ctx.stroke();
+  ctx.restore();
+}
+
+/* ================= SCENE ================= */
+function drawBackground(){
+  // sky / garden wall
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0, "#ffe9c4"); grad.addColorStop(0.55, "#fff3da"); grad.addColorStop(1, "#ffe3ba");
+  ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
+  // sunny garden strip at top with fence + flowers
+  ctx.fillStyle = "#bfe3a8"; ctx.fillRect(0, 40, diningW()+8, 54);
+  ctx.fillStyle = "#a5d68f"; ctx.fillRect(0, 88, diningW()+8, 8);
+  ctx.strokeStyle = "#e8c9a8"; ctx.lineWidth = 4;
+  for(let fx=18; fx<diningW(); fx+=44){ ctx.beginPath(); ctx.moveTo(fx,44); ctx.lineTo(fx,92); ctx.stroke(); }
+  ctx.beginPath(); ctx.moveTo(0,58); ctx.lineTo(diningW(),58); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,82); ctx.lineTo(diningW(),82); ctx.stroke();
+  const flowerCols = ["#f28bb4","#f2b63c","#e86a4e","#b48ce0"];
+  for(let fx=30; fx<diningW()-10; fx+=62){
+    ctx.fillStyle = flowerCols[(fx/62|0)%4];
+    for(let k=0;k<5;k++){ const a=k/5*6.28; ctx.beginPath(); ctx.arc(fx+Math.cos(a)*4, 76+Math.sin(a)*4, 3.4,0,6.29); ctx.fill(); }
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(fx,76,2.4,0,6.29); ctx.fill();
+  }
+  // sun
+  ctx.fillStyle = "#ffd94d"; inkLine(3); ctx.beginPath(); ctx.arc(W-70, 44, 22, 0, 6.29); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = "#f2b63c"; ctx.lineWidth = 3;
+  for(let k=0;k<8;k++){ const a=k/8*6.28 + timeNow*0.15; ctx.beginPath(); ctx.moveTo(W-70+Math.cos(a)*28, 44+Math.sin(a)*28); ctx.lineTo(W-70+Math.cos(a)*36, 44+Math.sin(a)*36); ctx.stroke(); }
+  // wooden floor
+  ctx.fillStyle = "#eebd8a"; ctx.fillRect(0, 96, diningW()+8, H-96);
+  ctx.strokeStyle = "rgba(169,116,63,.35)"; ctx.lineWidth = 2;
+  for(let fy=130; fy<H; fy+=42){ ctx.beginPath(); ctx.moveTo(0,fy); ctx.lineTo(diningW()+8,fy); ctx.stroke(); }
+  // rug
+  ctx.fillStyle = "rgba(232,106,78,.20)"; rr(W*0.06, H*0.30, diningW()*0.82, H*0.6, 26); ctx.fill();
+  ctx.strokeStyle = "rgba(232,106,78,.4)"; ctx.lineWidth = 3; rr(W*0.06, H*0.30, diningW()*0.82, H*0.6, 26); ctx.stroke();
+  // door (left)
+  const d = doorXY();
+  ctx.fillStyle = "#a9743f"; inkLine(3.4); rr(d.x-30, d.y-64, 60, 118, 10); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#ffe9a8"; rr(d.x-21, d.y-52, 42, 44, 8); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#f2b63c"; ctx.beginPath(); ctx.arc(d.x+18, d.y+8, 4, 0, 6.29); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#5a3a26"; ctx.font = "900 11px ui-rounded, system-ui"; ctx.textAlign="center";
+  ctx.fillText("IN", d.x, d.y+34);
+  // hanging sign
+  ctx.fillStyle = "#fffdf7"; inkLine(2.4); rr(d.x-34, d.y-92, 68, 20, 9); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#5a3a26"; ctx.font = "900 10px ui-rounded, system-ui"; ctx.fillText("🐾 GUESTS", d.x, d.y-78);
+}
+function drawKitchen(){
+  const kx = diningW()+8, kw = W - kx;
+  // kitchen wall + tiles
+  ctx.fillStyle = "#ffe1ec"; ctx.fillRect(kx, 40, kw, H-40);
+  ctx.strokeStyle = "rgba(214,140,170,.4)"; ctx.lineWidth = 1.6;
+  for(let ty=52; ty<H; ty+=26){ ctx.beginPath(); ctx.moveTo(kx,ty); ctx.lineTo(W,ty); ctx.stroke(); }
+  for(let tx=kx+13; tx<W; tx+=26){ ctx.beginPath(); ctx.moveTo(tx,40); ctx.lineTo(tx,H); ctx.stroke(); }
+  // shelf with jars
+  ctx.fillStyle = "#a9743f"; inkLine(2.6); rr(kx+10, 96, kw-20, 8, 3); ctx.fill(); ctx.stroke();
+  ["#f28bb4","#f2b63c","#7fb6c9"].forEach((c,i)=>{
+    ctx.fillStyle = c; rr(kx+18+i*(kw-36)/3, 74, 18, 22, 4); ctx.fill(); ctx.stroke();
+  });
+  ctx.fillStyle = "#5a3a26"; ctx.font = "900 12px ui-rounded, system-ui"; ctx.textAlign="center";
+  ctx.fillText("KITCHEN", kx+kw/2, 66);
+  // stove + pots (cooking slots)
+  const stoveY = H*0.34;
+  ctx.fillStyle = "#8d8a99"; inkLine(3); rr(kx+8, stoveY, kw-16, 64, 10); ctx.fill(); ctx.stroke();
+  const n = potCount();
+  for(let i=0;i<n;i++){
+    const px = kx + kw*(i+0.5)/n, py = stoveY + 30;
+    const job = pots[i];
+    // burner
+    ctx.fillStyle = job ? "#e86a4e" : "#5c5a66"; ell(px, py+16, 20, 6); ctx.fill();
+    // pot
+    ctx.fillStyle = "#c8ccd4"; inkLine(2.6); rr(px-17, py-12, 34, 26, 6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#9aa0ab"; ell(px, py-12, 17, 5); ctx.fill(); ctx.stroke();
+    if(job){
+      // bubbling + steam
+      ctx.fillStyle = "#f6c177"; ell(px, py-12, 13, 3.4); ctx.fill();
+      ctx.strokeStyle = "rgba(140,140,140,.6)"; ctx.lineWidth = 2;
+      [-7,4].forEach((o,si)=>{ const ph = Math.sin(timeNow*5+si*2+i)*2; ctx.beginPath(); ctx.moveTo(px+o, py-20); ctx.quadraticCurveTo(px+o+ph, py-28, px+o, py-34); ctx.stroke(); });
+      // progress ring
+      const frac = Math.min(1, job.t/job.dur);
+      ctx.lineWidth = 4.5; ctx.strokeStyle = "#e8ddcb";
+      ctx.beginPath(); ctx.arc(px, py-2, 24, 0, 6.29); ctx.stroke();
+      ctx.strokeStyle = "#4caf6d";
+      ctx.beginPath(); ctx.arc(px, py-2, 24, -Math.PI/2, -Math.PI/2 + frac*6.29); ctx.stroke();
+      drawDishIcon(job.dish.id, px, py-40, 0.55);
+    }
+  }
+  // chef(s) behind stove
+  drawChef(kx + kw*0.30, stoveY - 26, false);
+  if(chef2) drawChef(kx + kw*0.74, stoveY - 26, true);
+  // queued orders note
+  if(pots.length > n){
+    ctx.fillStyle = "#5a3a26"; ctx.font = "800 11px ui-rounded, system-ui"; ctx.textAlign="center";
+    ctx.fillText("+" + (pots.length-n) + " waiting…", kx+kw/2, stoveY + 82);
+  }
+  // pass counter
+  const p = passXY();
+  ctx.fillStyle = "#a9743f"; inkLine(3.2); rr(kx+6, p.y-6, kw-12, H-p.y-2, 8); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#c98d5f"; rr(kx+6, p.y-6, kw-12, 14, 8); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#fff3da"; ctx.font = "900 11px ui-rounded, system-ui"; ctx.textAlign="center";
+  ctx.fillText("PASS — tap or press C", kx+kw/2, p.y+26);
+  pass.forEach((d,idx)=>{
+    const dx = kx + 26 + idx*38, dy = p.y - 18;
+    ctx.fillStyle = "#fffdf7"; inkLine(2.2); ell(dx, dy, 15, 6); ctx.fill(); ctx.stroke();
+    drawDishIcon(d.dish.id, dx, dy-6, 0.7);
+    ctx.fillStyle = "#e86a4e"; ctx.beginPath(); ctx.arc(dx+12, dy-14, 7, 0, 6.29); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.font = "900 9px ui-rounded, system-ui"; ctx.fillText(String(d.table+1), dx+12, dy-11);
+  });
+  if(pass.length){ // glow pulse on pass
+    ctx.strokeStyle = "rgba(76,175,109," + (0.5+0.4*Math.sin(timeNow*6)).toFixed(2) + ")"; ctx.lineWidth = 3.5;
+    rr(kx+4, p.y-10, kw-8, 22, 10); ctx.stroke();
+  }
+  // jukebox
+  const jx = kx + kw/2, jy = H*0.60;
+  ctx.fillStyle = "#e86a4e"; inkLine(3); rr(jx-24, jy-26, 48, 56, 20); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#ffe9a8"; ell(jx, jy-6, 14, 11); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#5a3a26"; [-8,0,8].forEach(o=>{ ctx.fillRect(jx+o-1.5, jy+10, 3, 12); });
+  if(screen==="play" && musicOn && Math.random()<0.06)
+    particles.push({ kind:"note", x:jx+20, y:jy-24, vx:12, vy:-20, t:0, life:1.4 });
+}
+function drawTable(tb){
+  const pos = tableXY(tb.i), x = pos.x, y = pos.y;
+  const s = Math.max(0.72, Math.min(1.05, W/1250));
+  if(tb.state==="locked"){
+    ctx.save(); ctx.globalAlpha = 0.55;
+    ctx.fillStyle = "#cbb694"; inkLine(3);
+    ell(x, y+34, 52, 15); ctx.fill(); ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = "#5a3a26"; ctx.font = "900 12px ui-rounded, system-ui"; ctx.textAlign="center";
+    ctx.fillText("🔒 Table 6 — Shop", x, y+10);
+    tableLabel(tb, x, y);
+    return;
+  }
+  const g = tb.guest;
+  const seated = g && (tb.state==="reading"||tb.state==="ordering"||tb.state==="waiting"||tb.state==="eating"||tb.state==="title");
+  const mood = g ? Math.max(0, g.patience/g.maxP) : undefined;
+  // ready glow
+  const readyHere = pass.some(p=>p.table===tb.i) || tb.glow>0;
+  if(readyHere && screen==="play"){
+    ctx.save(); ctx.strokeStyle = "rgba(76,200,100," + (0.55+0.35*Math.sin(timeNow*7)).toFixed(2) + ")";
+    ctx.lineWidth = 5; ell(x, y+36, 66*s+8, 24*s+6); ctx.stroke(); ctx.restore();
+  }
+  if(seated){
+    drawSeatedCat(g, x, y-6, s, {
+      mood: tb.state==="title" ? undefined : mood,
+      pawUp: tb.state==="ordering",
+      reading: tb.state==="reading",
+      eating: tb.state==="eating",
+      ring: screen==="play" && tb.state!=="eating",
+    });
+  } else {
+    // empty booth seat
+    ctx.fillStyle = "#e8906f"; inkLine(3); rr(x-46*s, y-64*s, 92*s, 74*s, 16); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#d97757"; inkLine(3); ell(x, y+8*s, 50*s, 13*s); ctx.fill(); ctx.stroke();
+  }
+  // table: pedestal + top OVER lower belly
+  ctx.fillStyle = "#8a6248"; ctx.fillRect(x-5*s, y+26*s, 10*s, 20*s);
+  ctx.fillStyle = "#fffdf7"; inkLine(3);
+  ell(x, y+28*s, 58*s, 17*s); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#ffd9b3"; ell(x, y+26*s, 46*s, 12*s); ctx.fill();
+  // little flower vase
+  ctx.fillStyle = "#7fb6c9"; rr(x+30*s, y+12*s, 7*s, 11*s, 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#f28bb4"; ctx.beginPath(); ctx.arc(x+33*s, y+9*s, 4.5*s, 0, 6.29); ctx.fill();
+  if(seated) drawTableFeet(x, y, s);
+  // order bubble (pictorial, no text)
+  if(tb.state==="ordering" || tb.state==="waiting"){
+    const bx = x + 52*s, by = y - 96*s, bob = Math.sin(timeNow*3+tb.i)*2;
+    ctx.fillStyle = "#ffffff"; inkLine(2.6);
+    rr(bx-21, by-21+bob, 42, 36, 11); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bx-8, by+14+bob); ctx.lineTo(bx-16, by+26+bob); ctx.lineTo(bx+4, by+15+bob); ctx.closePath(); ctx.fill(); ctx.stroke();
+    drawDishIcon(g.dish.id, bx, by-3+bob, 0.95);
+    if(tb.state==="ordering"){
+      ctx.fillStyle = "#e86a4e"; ctx.font = "900 13px ui-rounded, system-ui"; ctx.textAlign="center";
+      ctx.fillText("!", bx+24, by-16+bob);
+    }
+  }
+  // eating plate steam drawn via particles; dirty state: coins + empty plate
+  if(tb.state==="dirty"){
+    ctx.fillStyle = "#e8e2d4"; inkLine(2.2); ell(x-14, y+24*s, 15, 6); ctx.fill(); ctx.stroke();
+    const tw = 0.6 + 0.4*Math.sin(timeNow*8);
+    ctx.fillStyle = "#f2b63c"; inkLine(2);
+    [[8,20],[20,26],[13,15]].forEach(c=>{
+      ctx.beginPath(); ctx.arc(x+c[0]*s, y+c[1]*s, 6, 0, 6.29); ctx.fill(); ctx.stroke();
+    });
+    ctx.fillStyle = "rgba(255,255,210,"+tw.toFixed(2)+")";
+    ctx.font = "11px system-ui"; ctx.textAlign="center"; ctx.fillText("✦", x+26*s, y+8*s);
+    ctx.fillStyle = "#2e7d46"; ctx.font = "900 12px ui-rounded, system-ui";
+    ctx.fillText("Tap to collect $" + tb.pending, x, y + 66*s);
+  }
+  tableLabel(tb, x, y);
+}
+function tableLabel(tb, x, y){
+  ctx.fillStyle = "rgba(90,58,38,.8)"; ctx.font = "900 11px ui-rounded, system-ui"; ctx.textAlign="center";
+  ctx.fillText(String(tb.i+1), x - 52, y + 52);
+}
+function drawChalkboard(){
+  const bw = 300, bh = 164;
+  const bx = 110, by = 46;
+  ctx.fillStyle = "#a9743f"; inkLine(4); rr(bx-8, by-8, bw+16, bh+16, 12); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#3d5a4c"; rr(bx, by, bw, bh, 8); ctx.fill();
+  ctx.fillStyle = "#fff6e9"; ctx.font = "900 17px ui-rounded, system-ui"; ctx.textAlign="center";
+  ctx.fillText("— TODAY'S MENU —", bx+bw/2, by+27);
+  MENU.forEach((m,i)=>{
+    const ry = by + 52 + i*28;
+    drawDishIcon(m.id, bx+26, ry-5, 0.8);
+    ctx.fillStyle = "#fff6e9"; ctx.font = "800 13.5px ui-rounded, system-ui"; ctx.textAlign="left";
+    ctx.fillText(m.name, bx+48, ry);
+    ctx.textAlign="right"; ctx.fillStyle = "#ffd94d";
+    ctx.fillText("$" + m.price + " · " + m.cook + "s", bx+bw-12, ry);
+  });
+}
+function drawHUD(){
+  // top bar
+  ctx.fillStyle = "rgba(255,246,233,.94)"; ctx.fillRect(0,0,W,40);
+  ctx.fillStyle = "#e8c9a8"; ctx.fillRect(0,40,W,3);
+  ctx.fillStyle = "#5a3a26"; ctx.textAlign="left"; ctx.textBaseline="middle";
+  ctx.font = "900 15px ui-rounded, system-ui";
+  const dayLabel = save.master ? "Master · Day " + day : "Day " + day;
+  ctx.fillText("📅 " + dayLabel, 12, 21);
+  ctx.fillText("🪙 $" + dayMoney, 118, 21);
+  // goal progress
+  const goal = goalFor(day), gx = 216, gw = Math.min(240, W*0.24);
+  ctx.fillStyle = "#e8ddcb"; rr(gx, 12, gw, 17, 8); ctx.fill();
+  ctx.fillStyle = dayMoney>=goal ? "#4caf6d" : "#f2a63c";
+  const fw = Math.min(gw, gw*dayMoney/goal); if(fw>4){ rr(gx, 12, fw, 17, 8); ctx.fill(); }
+  ctx.fillStyle = "#5a3a26"; ctx.font = "800 11.5px ui-rounded, system-ui"; ctx.textAlign="center";
+  ctx.fillText("Goal $" + goal, gx+gw/2, 21);
+  // combo
+  if(combo>=2){
+    ctx.textAlign="left"; ctx.fillStyle = "#e86a4e"; ctx.font = "900 15px ui-rounded, system-ui";
+    ctx.fillText("🔥 Combo x" + combo, gx+gw+14, 21);
+    ctx.fillStyle = "#e8ddcb"; ctx.fillRect(gx+gw+14, 31, 74, 5);
+    ctx.fillStyle = "#e86a4e"; ctx.fillRect(gx+gw+14, 31, 74*Math.max(0,comboT/7), 5);
+  }
+  // clock: 9am -> 9pm
+  const mins = 9*60 + (dayTime/DAY_LEN)*12*60;
+  const hh = Math.floor(mins/60), mm = Math.floor(mins%60);
+  const label = ((hh+11)%12+1) + ":" + String(mm).padStart(2,"0") + (hh>=12?"pm":"am");
+  ctx.textAlign="right"; ctx.fillStyle = (hh>=20) ? "#e84c3c" : (hh>=18 ? "#e8930c" : "#5a3a26");
+  ctx.font = "900 15px ui-rounded, system-ui";
+  ctx.fillText("🕘 " + label + " / 9pm", diningW()-8, 21);
+  ctx.textBaseline="alphabetic";
+  if(rush){
+    ctx.fillStyle = "rgba(232,106,78,.92)"; rr(W/2-118, 48, 236, 26, 13); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.font = "900 14px ui-rounded, system-ui"; ctx.textAlign="center";
+    ctx.fillText("⚡ RUSH HOUR · +25% TIPS · " + Math.ceil(rushT) + "s", W/2, 66);
+  }
+  if(paused){ ctx.fillStyle = "#5a3a26"; ctx.font = "900 14px ui-rounded, system-ui"; ctx.textAlign="center"; ctx.fillText("⏸ PAUSED", W/2, 66); }
+}
+function draw(){
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.fillStyle = "#f7e3c3"; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.setTransform(DPR*viewScale,0,0,DPR*viewScale, DPR*viewOX, DPR*viewOY);
+  ctx.clearRect(0,0,W,H);
+  drawBackground();
+  drawKitchen();
+  // queue guests at door
+  queue.forEach((g,idx)=>{ drawWalkingCat(g, g.x, g.y + idx*4, 0.82, {}); });
+  leaving.forEach(g=>{ ctx.save(); drawWalkingCat(g, g.x, g.y, 0.9, {}); ctx.restore(); });
+  // tables (sorted by y so lower rows overlap correctly)
+  const sorted = tables.slice().sort((a,b)=>tableXY(a.i).y - tableXY(b.i).y);
+  sorted.forEach(drawTable);
+  drawMiso(miso.x, miso.y);
+  // particles
+  particles.forEach(p=>{
+    const a = 1 - p.t/p.life;
+    if(p.kind==="coin"){ ctx.globalAlpha = a; ctx.fillStyle = "#f2b63c"; inkLine(1.6); ctx.beginPath(); ctx.arc(p.x,p.y,5.5,0,6.29); ctx.fill(); ctx.stroke(); ctx.globalAlpha=1; }
+    else if(p.kind==="steam"){ ctx.globalAlpha = a*0.6; ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(p.x,p.y,4+p.t*7,0,6.29); ctx.fill(); ctx.globalAlpha=1; }
+    else if(p.kind==="heart"){ ctx.globalAlpha = a; ctx.fillStyle = "#f28bb4"; ctx.font = "13px system-ui"; ctx.textAlign="center"; ctx.fillText("♥", p.x, p.y); ctx.globalAlpha=1; }
+    else if(p.kind==="note"){ ctx.globalAlpha = a; ctx.fillStyle = "#5a3a26"; ctx.font = "14px system-ui"; ctx.textAlign="center"; ctx.fillText("♪", p.x, p.y); ctx.globalAlpha=1; }
+  });
+  floaters.forEach(f=>{
+    ctx.globalAlpha = Math.max(0, 1 - f.t/1.1);
+    ctx.fillStyle = f.color; ctx.font = "900 16px ui-rounded, system-ui"; ctx.textAlign="center";
+    ctx.fillText(f.text, f.x, f.y); ctx.globalAlpha = 1;
+  });
+  if(screen==="play" || screen==="end") drawHUD();
+  if(screen==="title") drawChalkboard();
+}
+
+/* ================= INPUT ================= */
+function canvasPos(ev){
+  const r = cv.getBoundingClientRect();
+  const cx = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left;
+  const cy = (ev.touches ? ev.touches[0].clientY : ev.clientY) - r.top;
+  return { x: (cx - viewOX)/viewScale, y: (cy - viewOY)/viewScale };
+}
+cv.addEventListener("pointerdown", ev=>{
+  ac();
+  if(screen!=="play" || paused || anyVeil()) return;
+  const p = canvasPos(ev);
+  // pass counter hit?
+  const kx = diningW()+8, pp = passXY();
+  if(p.x>kx && p.y>pp.y-24 && p.y<H){ grabDish(); return; }
+  // kitchen pots area -> nothing
+  // tables: nearest within radius
+  let best = -1, bd = 1e9;
+  tables.forEach(tb=>{ const t = tableXY(tb.i); const d = dist(p.x,p.y,t.x,t.y+16); if(d<bd){ bd=d; best=tb.i; } });
+  if(best>=0 && bd<86) tableAction(best);
+});
+function anyVeil(){ return document.querySelector(".veil.open") !== null; }
+function hideAllVeils(){ document.querySelectorAll(".veil.open").forEach(v=>v.classList.remove("open")); }
+function openVeil(id){ document.getElementById(id).classList.add("open"); }
+function togglePause(force){
+  if(screen!=="play") return;
+  paused = (force!==undefined) ? force : !paused;
+  if(paused) openVeil("pauseVeil"); else document.getElementById("pauseVeil").classList.remove("open");
+}
+document.addEventListener("keydown", ev=>{
+  const k = ev.key;
+  if(k==="Enter"){
+    if(screen==="title" && !anyVeil()){ startDay(); }
+    else if(screen==="end"){ hideAllVeils(); startDay(); }
+    return;
+  }
+  if(k==="Escape"){
+    if(anyVeil()){ hideAllVeils(); shopFromEnd = false; if(screen==="play" && paused) togglePause(false); if(screen==="end") openVeil("endVeil"); }
+    else if(screen==="play" || screen==="end"){ toTitle(); }
+    return;
+  }
+  if(screen!=="play") {
+    if((k==="s"||k==="S") && screen==="title") openShop();
+    if((k==="h"||k==="H") && screen==="title") openVeil("helpVeil");
+    return;
+  }
+  if(k==="p"||k==="P"){ togglePause(); return; }
+  if(paused || anyVeil()) return;
+  if(k>="1" && k<="6"){ tableAction(parseInt(k,10)-1); }
+  else if(k==="c"||k==="C"||k===" "){ ev.preventDefault(); grabDish(); }
+  else if(k==="s"||k==="S"){ openShop(); }
+});
+
+/* ================= SHOP / TROPHIES UI ================= */
+function renderShop(){
+  document.getElementById("shopBank").textContent = "$" + save.bank;
+  const body = document.getElementById("shopBody");
+  body.innerHTML = "";
+  SHOP.forEach(item=>{
+    const owned = hasUp(item.id);
+    const row = document.createElement("div"); row.className = "shoprow";
+    row.innerHTML = '<div class="ic">'+item.ic+'</div><div class="tx"><b>'+item.name+'</b><span>'+item.desc+'</span></div>';
+    const btn = document.createElement("button"); btn.className = "buybtn";
+    if(owned){ btn.textContent = "Owned ✓"; btn.disabled = true; }
+    else {
+      btn.textContent = "$" + item.price;
+      if(save.bank < item.price) btn.classList.add("cant");
+      btn.addEventListener("click", ()=>{
+        if(save.bank < item.price){ toast("Not enough coins yet — keep serving! 🪙"); return; }
+        save.bank -= item.price; save.up[item.id] = 1; persist(); sfx.coin();
+        if(item.id==="helper") chef2 = true;
+        toast(item.name + " bought!"); renderShop();
+      });
+    }
+    row.appendChild(btn); body.appendChild(row);
+  });
+}
+let shopFromEnd = false;
+function openShop(){
+  if(screen==="end"){ document.getElementById("endVeil").classList.remove("open"); shopFromEnd = true; }
+  renderShop(); openVeil("shopVeil");
+}
+function renderAch(){
+  const got = ACHS.filter(a=>save.ach[a.id]).length;
+  document.getElementById("achCount").textContent = got + " / " + ACHS.length + " earned";
+  const body = document.getElementById("achBody"); body.innerHTML = "";
+  ACHS.forEach(a=>{
+    const row = document.createElement("div");
+    row.className = "achrow" + (save.ach[a.id] ? "" : " locked");
+    row.innerHTML = '<div class="st">'+(save.ach[a.id] ? a.ic : "🔒")+'</div><div><b>'+a.name+'</b><span>'+a.desc+'</span></div>';
+    body.appendChild(row);
+  });
+}
+function openAch(){ renderAch(); openVeil("achVeil"); }
+
+/* dock + title buttons */
+document.getElementById("playBtn").addEventListener("click", ()=>{ sfx.click(); startDay(); });
+document.getElementById("tShop").addEventListener("click", openShop);
+document.getElementById("tAch").addEventListener("click", openAch);
+document.getElementById("tHelp").addEventListener("click", ()=>openVeil("helpVeil"));
+document.getElementById("dGrab").addEventListener("click", grabDish);
+document.getElementById("dPause").addEventListener("click", ()=>togglePause());
+document.getElementById("dShop").addEventListener("click", openShop);
+document.getElementById("dAch").addEventListener("click", openAch);
+document.getElementById("dMenu").addEventListener("click", ()=>{ if(screen==="play"||screen==="end") toTitle(); });
+document.getElementById("dMusic").addEventListener("click", function(){ musicOn = !musicOn; this.textContent = musicOn ? "🎵 Music: On" : "🎵 Music: Off"; });
+document.getElementById("shopClose").addEventListener("click", ()=>{
+  document.getElementById("shopVeil").classList.remove("open");
+  if(shopFromEnd){ shopFromEnd = false; document.getElementById("endVeil").classList.add("open"); }
+});
+document.getElementById("achClose").addEventListener("click", ()=>document.getElementById("achVeil").classList.remove("open"));
+document.getElementById("helpClose").addEventListener("click", ()=>document.getElementById("helpVeil").classList.remove("open"));
+document.getElementById("endShop").addEventListener("click", openShop);
+document.getElementById("endNext").addEventListener("click", ()=>{ hideAllVeils(); startDay(); });
+document.getElementById("pauseResume").addEventListener("click", ()=>togglePause(false));
+document.getElementById("pauseMenu").addEventListener("click", ()=>{ togglePause(false); toTitle(); });
+
+/* ================= LOOP ================= */
+let lastT = performance.now();
+function frame(now){
+  let dt = Math.min(0.05, (now-lastT)/1000); lastT = now;
+  update(dt);
+  draw();
+  requestAnimationFrame(frame);
+}
+resize(); toTitle();
+requestAnimationFrame(()=>{ resize(); requestAnimationFrame(frame); });
+
+/* debug/verification hook */
+window.__cafe = { get state(){ return { screen, day, dayMoney, dayTime, tables: tables.map(t=>t.state), pass: pass.length, pots: pots.length, queue: queue.length, combo, save }; },
+  startDay, tableAction, grabDish, endDay };
+</script>
+</body>
+</html>
